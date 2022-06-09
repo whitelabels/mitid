@@ -29,29 +29,27 @@ module MitID
     end
 
     def fetch_tokens_from_code(code:, redirect_uri:)
-      client_assertion = JWT.encode({
-        jti: SecureRandom.uuid,
-        sub: @client_id,
-        iat: Time.now.to_i,
-        nbf: Time.now.to_i,
-        exp: (Time.now + 15*60).to_i,
-        iss: @client_id,
-        aud: @token_endpoint
-      }, @private_key, "RS256")
+      client_assertion = JWT.encode({ jti: SecureRandom.uuid,
+                                      sub: @client_id,
+                                      iat: Time.now.to_i,
+                                      nbf: Time.now.to_i,
+                                      exp: (Time.now + 15*60).to_i,
+                                      iss: @client_id,
+                                      aud: @token_endpoint },
+                                    @private_key,
+                                    "RS256")
 
       connection.post(@token_endpoint,
-                      grant_type: "authorization_code",
-                      code: code,
-                      client_id: @client_id,
-                      redirect_uri: redirect_uri,
-                      client_assertion: client_assertion,
+                      grant_type:            "authorization_code",
+                      code:                  code,
+                      client_id:             @client_id,
+                      redirect_uri:          redirect_uri,
+                      client_assertion:      client_assertion,
                       client_assertion_type: "urn:ietf:params:oauth:client-assertion-type:jwt-bearer").body
     end
 
     def fetch_userinfo(access_token)
-      connection.get @userinfo_endpoint do |req|
-        req.headers["Authorization"] = "Bearer #{access_token}"
-      end.body
+      connection.get(@userinfo_endpoint) { |req| req.headers["Authorization"] = "Bearer #{access_token}" }.body
     end
 
     private
@@ -59,10 +57,10 @@ module MitID
       def fetch_openid_configuration(configuration_url)
         response = connection.get(configuration_url)
 
-        @aud = response.body["issuer"]
+        @aud                    = response.body["issuer"]
         @authorization_endpoint = response.body["authorization_endpoint"]
-        @token_endpoint = response.body["token_endpoint"]
-        @userinfo_endpoint = response.body["userinfo_endpoint"]
+        @token_endpoint         = response.body["token_endpoint"]
+        @userinfo_endpoint      = response.body["userinfo_endpoint"]
       end
 
       def connection
