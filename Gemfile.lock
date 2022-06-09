@@ -1,0 +1,23 @@
+PATH
+  remote: .
+  specs:
+    mitid (0.1.0)
+      faraday (~> 2.3.0)
+
+GEM
+  remote: https://rubygems.org/
+  specs:
+    faraday (2.3.0)
+      faraday-net_http (~> 2.0)
+      ruby2_keywords (>= 0.0.4)
+    faraday-net_http (2.0.3)
+    ruby2_keywords (0.0.5)
+
+PLATFORMS
+  x86_64-darwin-21
+
+DEPENDENCIES
+  mitid!
+
+BUNDLED WITH
+   2.3.7
