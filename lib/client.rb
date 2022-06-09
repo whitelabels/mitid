@@ -12,11 +12,11 @@ module MitID
       fetch_openid_configuration openid_configuration_url
     end
 
-    def create_authorize_url(redirect_uri:)
+    def create_authorize_url(redirect_uri:, scope:)
       request = JWT.encode({ client_id: @client_id,
                              redirect_uri: redirect_uri,
                              response_type: "code",
-                             scope: "openid",
+                             scope: scope,
                              aud: @aud,
                              iss: @client_id,
                              iat: Time.now.to_i,
