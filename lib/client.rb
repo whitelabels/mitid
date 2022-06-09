@@ -48,6 +48,12 @@ module MitID
                       client_assertion_type: "urn:ietf:params:oauth:client-assertion-type:jwt-bearer").body
     end
 
+    def fetch_userinfo(access_token)
+      connection.get @userinfo_endpoint do |req|
+        req.headers["Authorization"] = "Bearer #{access_token}"
+      end.body
+    end
+
     private
 
       def fetch_openid_configuration(configuration_url)
@@ -56,6 +62,7 @@ module MitID
         @aud = response.body["issuer"]
         @authorization_endpoint = response.body["authorization_endpoint"]
         @token_endpoint = response.body["token_endpoint"]
+        @userinfo_endpoint = response.body["userinfo_endpoint"]
       end
 
       def connection
