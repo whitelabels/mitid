@@ -4,10 +4,9 @@ require "securerandom"
 
 module MitID
   class Client
-    def initialize(openid_configuration_url:, client_id:, client_secret:, private_key:)
-      @client_id = client_id
-      @client_secret = client_secret
-      @private_key = private_key
+    def initialize(openid_configuration_url:, client_id:, private_key:)
+      @client_id     = client_id
+      @private_key   = private_key
 
       fetch_openid_configuration openid_configuration_url
     end
@@ -22,8 +21,8 @@ module MitID
                              iat: Time.now.to_i,
                              exp: (Time.now + 15*60).to_i,
                              nbf: Time.now.to_i },
-                           @client_secret,
-                           "HS256")
+                           @private_key,
+                           "RS256")
 
       "#{@authorization_endpoint}?client_id=#{@client_id}&request=#{request}"
     end
