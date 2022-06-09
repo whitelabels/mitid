@@ -11,4 +11,5 @@ Gem::Specification.new do |s|
   s.metadata    = { "source_code_uri" => "https://github.com/whitelabels/mitid" }
 
   s.add_runtime_dependency "faraday", "~> 2.3.0"
+  s.add_runtime_dependency "jwt", "~> 2.4.1"
 end

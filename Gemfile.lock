@@ -3,6 +3,7 @@ PATH
   specs:
     mitid (0.1.0)
       faraday (~> 2.3.0)
+      jwt (~> 2.4.1)
 
 GEM
   remote: https://rubygems.org/
@@ -11,6 +12,7 @@ GEM
       faraday-net_http (~> 2.0)
       ruby2_keywords (>= 0.0.4)
     faraday-net_http (2.0.3)
+    jwt (2.4.1)
     ruby2_keywords (0.0.5)
 
 PLATFORMS
