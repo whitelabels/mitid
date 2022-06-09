@@ -28,7 +28,7 @@ module MitID
       "#{@authorization_endpoint}?client_id=#{@client_id}&request=#{request}"
     end
 
-    def fetch_token_from_code(code:, redirect_uri:)
+    def fetch_tokens_from_code(code:, redirect_uri:)
       client_assertion = JWT.encode({
         jti: SecureRandom.uuid,
         sub: @client_id,
