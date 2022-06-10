@@ -11,7 +11,7 @@ module MitID
       fetch_openid_configuration openid_configuration_url
     end
 
-    def create_authorize_url(redirect_uri:, scope:)
+    def authorize_url(redirect_uri:, scope:)
       request = JWT.encode({ client_id: @client_id,
                              redirect_uri: redirect_uri,
                              response_type: "code",
@@ -27,7 +27,7 @@ module MitID
       "#{@authorization_endpoint}?client_id=#{@client_id}&request=#{request}"
     end
 
-    def fetch_tokens_from_code(code:, redirect_uri:)
+    def authorize(code:, redirect_uri:)
       client_assertion = JWT.encode({ jti: SecureRandom.uuid,
                                       sub: @client_id,
                                       iat: Time.now.to_i,
@@ -47,7 +47,7 @@ module MitID
                       client_assertion_type: "urn:ietf:params:oauth:client-assertion-type:jwt-bearer").body
     end
 
-    def fetch_userinfo(access_token)
+    def userinfo(access_token)
       connection.get(@userinfo_endpoint) { |req| req.headers["Authorization"] = "Bearer #{access_token}" }.body
     end
 

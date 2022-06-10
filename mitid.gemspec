@@ -12,4 +12,7 @@ Gem::Specification.new do |s|
 
   s.add_runtime_dependency "faraday", "~> 2.3.0"
   s.add_runtime_dependency "jwt", "~> 2.4.1"
+
+  s.add_development_dependency "rspec", "~> 3.11.0"
+  s.add_development_dependency "webmock", "~> 3.14.0"
 end
