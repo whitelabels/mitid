@@ -1,5 +1,3 @@
-require_relative "../lib/client"
-
 describe MitID::Client do
   before do
     stub_request(:get, configuration_url).
