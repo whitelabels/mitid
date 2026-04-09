@@ -15,24 +15,26 @@ module MitID
       fetch_openid_configuration openid_configuration_url
     end
 
-    def authorize_url(redirect_uri:, scope:)
+    def authorize_url(redirect_uri:, scope:, idp_values: nil)
       if @private_key
-        request = JWT.encode({ client_id: @client_id,
-                               redirect_uri: redirect_uri,
-                               response_type: "code",
-                               scope: scope,
-                               aud: @aud,
-                               iss: @client_id,
-                               iat: Time.now.to_i,
-                               exp: (Time.now + 15*60).to_i,
-                               nbf: Time.now.to_i },
-                             @private_key,
-                             "RS256")
+        payload = { client_id: @client_id,
+                    redirect_uri: redirect_uri,
+                    response_type: "code",
+                    scope: scope,
+                    aud: @aud,
+                    iss: @client_id,
+                    iat: Time.now.to_i,
+                    exp: (Time.now + 15*60).to_i,
+                    nbf: Time.now.to_i }
+        payload[:idp_values] = idp_values if idp_values
+
+        request = JWT.encode(payload, @private_key, "RS256")
 
         "#{@authorization_endpoint}?client_id=#{@client_id}&request=#{request}"
       else
-        params = URI.encode_www_form(client_id: @client_id, redirect_uri: redirect_uri, response_type: "code", scope: scope)
-        "#{@authorization_endpoint}?#{params}"
+        params = { client_id: @client_id, redirect_uri: redirect_uri, response_type: "code", scope: scope }
+        params[:idp_values] = idp_values if idp_values
+        "#{@authorization_endpoint}?#{URI.encode_www_form(params)}"
       end
     end
 

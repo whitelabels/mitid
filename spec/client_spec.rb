@@ -125,6 +125,22 @@ describe MitID::Client do
 
       expect(decoded_request["nbf"]).to be_within(1).of(Time.now.to_i)
     end
+
+    it "includes idp_values in the signed request when given" do
+      authorize_url = subject.authorize_url(redirect_uri: redirect_uri, scope: scope, idp_values: "mitid")
+      jwt = CGI.parse(URI.parse(authorize_url).query)["request"].first
+      decoded_request = JWT.decode(jwt, private_key.public_key, true, { algorithm: "RS256" }).first
+
+      expect(decoded_request["idp_values"]).to eq "mitid"
+    end
+
+    it "omits idp_values from the signed request when not given" do
+      authorize_url = subject.authorize_url(redirect_uri: redirect_uri, scope: scope)
+      jwt = CGI.parse(URI.parse(authorize_url).query)["request"].first
+      decoded_request = JWT.decode(jwt, private_key.public_key, true, { algorithm: "RS256" }).first
+
+      expect(decoded_request).not_to have_key("idp_values")
+    end
   end
 
   describe "authorize" do
@@ -268,6 +284,18 @@ describe MitID::Client do
         query = URI.parse(subject.authorize_url(redirect_uri: redirect_uri, scope: scope)).query
 
         expect(CGI.parse(query)).not_to have_key("request")
+      end
+
+      it "includes idp_values as a query param when given" do
+        query = URI.parse(subject.authorize_url(redirect_uri: redirect_uri, scope: scope, idp_values: "mitid")).query
+
+        expect(CGI.parse(query)["idp_values"]).to eq ["mitid"]
+      end
+
+      it "omits idp_values when not given" do
+        query = URI.parse(subject.authorize_url(redirect_uri: redirect_uri, scope: scope)).query
+
+        expect(CGI.parse(query)).not_to have_key("idp_values")
       end
     end
 
