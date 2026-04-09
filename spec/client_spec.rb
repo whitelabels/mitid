@@ -13,11 +13,20 @@ describe MitID::Client do
 
   let(:client_id) { SecureRandom.hex }
   let(:private_key) { OpenSSL::PKey::RSA.generate 2048 }
+  let(:client_secret) { SecureRandom.base64 }
 
   subject do
     described_class.new(openid_configuration_url: configuration_url,
                         client_id:                client_id,
                         private_key:              private_key)
+  end
+
+  describe "initialization" do
+    it "raises when neither private_key nor client_secret is given" do
+      expect {
+        described_class.new(openid_configuration_url: configuration_url, client_id: client_id)
+      }.to raise_error(ArgumentError)
+    end
   end
 
   describe "authorize_url" do
@@ -227,6 +236,74 @@ describe MitID::Client do
       expect(userinfo["mitid.date_of_birth"]).to eq mitid_date_of_birth
       expect(userinfo["da.cpr"]).to eq mitid_cpr
       expect(userinfo["mitid.identity_name"]).to eq mitid_name
+    end
+  end
+
+  context "with client_secret" do
+    subject do
+      described_class.new(openid_configuration_url: configuration_url,
+                          client_id:                client_id,
+                          client_secret:            client_secret)
+    end
+
+    describe "authorize_url" do
+      let(:redirect_uri) { "http://localhost:3000/callbacks/mitid" }
+      let(:scope) { "openid mitid" }
+
+      it "uses the authorization endpoint" do
+        expect(subject.authorize_url(redirect_uri: redirect_uri, scope: scope)).to start_with(authorization_endpoint)
+      end
+
+      it "includes client_id, redirect_uri, response_type and scope as plain query params" do
+        query = URI.parse(subject.authorize_url(redirect_uri: redirect_uri, scope: scope)).query
+        params = CGI.parse(query)
+
+        expect(params["client_id"]).to eq [client_id]
+        expect(params["redirect_uri"]).to eq [redirect_uri]
+        expect(params["response_type"]).to eq ["code"]
+        expect(params["scope"]).to eq [scope]
+      end
+
+      it "does not include a signed request JWT" do
+        query = URI.parse(subject.authorize_url(redirect_uri: redirect_uri, scope: scope)).query
+
+        expect(CGI.parse(query)).not_to have_key("request")
+      end
+    end
+
+    describe "authorize" do
+      let(:code) { SecureRandom.hex }
+      let(:redirect_uri) { "http://localhost:3000/callbacks/mitid" }
+
+      it "sends client_secret in the request body" do
+        request = stub_request(:post, token_endpoint).with(body: hash_including(client_secret: client_secret))
+
+        subject.authorize(code: code, redirect_uri: redirect_uri)
+
+        assert_requested request
+      end
+
+      it "does not send a client_assertion" do
+        request = stub_request(:post, token_endpoint).with { |req| !CGI.parse(req.body).key?("client_assertion") }
+
+        subject.authorize(code: code, redirect_uri: redirect_uri)
+
+        assert_requested request
+      end
+
+      it "returns the tokens" do
+        id_token = JWT.encode({}, nil)
+        access_token = JWT.encode({}, nil)
+
+        stub_request(:post, token_endpoint).
+          to_return(headers: { content_type: "application/json" },
+                    body: JSON.generate(id_token: id_token, access_token: access_token))
+
+        tokens = subject.authorize(code: code, redirect_uri: redirect_uri)
+
+        expect(tokens["id_token"]).to eq id_token
+        expect(tokens["access_token"]).to eq access_token
+      end
     end
   end
 end
