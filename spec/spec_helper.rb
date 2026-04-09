@@ -1,3 +1,4 @@
+require 'cgi'
 require 'webmock/rspec'
 require 'mitid'
 
