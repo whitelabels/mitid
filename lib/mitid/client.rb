@@ -1,50 +1,68 @@
 require "faraday"
 require "jwt"
 require "securerandom"
+require "uri"
 
 module MitID
   class Client
-    def initialize(openid_configuration_url:, client_id:, private_key:)
+    def initialize(openid_configuration_url:, client_id:, private_key: nil, client_secret: nil)
+      raise ArgumentError, "Either private_key or client_secret must be provided" unless private_key || client_secret
+
       @client_id     = client_id
       @private_key   = private_key
+      @client_secret = client_secret
 
       fetch_openid_configuration openid_configuration_url
     end
 
     def authorize_url(redirect_uri:, scope:)
-      request = JWT.encode({ client_id: @client_id,
-                             redirect_uri: redirect_uri,
-                             response_type: "code",
-                             scope: scope,
-                             aud: @aud,
-                             iss: @client_id,
-                             iat: Time.now.to_i,
-                             exp: (Time.now + 15*60).to_i,
-                             nbf: Time.now.to_i },
-                           @private_key,
-                           "RS256")
+      if @private_key
+        request = JWT.encode({ client_id: @client_id,
+                               redirect_uri: redirect_uri,
+                               response_type: "code",
+                               scope: scope,
+                               aud: @aud,
+                               iss: @client_id,
+                               iat: Time.now.to_i,
+                               exp: (Time.now + 15*60).to_i,
+                               nbf: Time.now.to_i },
+                             @private_key,
+                             "RS256")
 
-      "#{@authorization_endpoint}?client_id=#{@client_id}&request=#{request}"
+        "#{@authorization_endpoint}?client_id=#{@client_id}&request=#{request}"
+      else
+        params = URI.encode_www_form(client_id: @client_id, redirect_uri: redirect_uri, response_type: "code", scope: scope)
+        "#{@authorization_endpoint}?#{params}"
+      end
     end
 
     def authorize(code:, redirect_uri:)
-      client_assertion = JWT.encode({ jti: SecureRandom.uuid,
-                                      sub: @client_id,
-                                      iat: Time.now.to_i,
-                                      nbf: Time.now.to_i,
-                                      exp: (Time.now + 15*60).to_i,
-                                      iss: @client_id,
-                                      aud: @token_endpoint },
-                                    @private_key,
-                                    "RS256")
+      if @private_key
+        client_assertion = JWT.encode({ jti: SecureRandom.uuid,
+                                        sub: @client_id,
+                                        iat: Time.now.to_i,
+                                        nbf: Time.now.to_i,
+                                        exp: (Time.now + 15*60).to_i,
+                                        iss: @client_id,
+                                        aud: @token_endpoint },
+                                      @private_key,
+                                      "RS256")
 
-      connection.post(@token_endpoint,
-                      grant_type:            "authorization_code",
-                      code:                  code,
-                      client_id:             @client_id,
-                      redirect_uri:          redirect_uri,
-                      client_assertion:      client_assertion,
-                      client_assertion_type: "urn:ietf:params:oauth:client-assertion-type:jwt-bearer").body
+        connection.post(@token_endpoint,
+                        grant_type:            "authorization_code",
+                        code:                  code,
+                        client_id:             @client_id,
+                        redirect_uri:          redirect_uri,
+                        client_assertion:      client_assertion,
+                        client_assertion_type: "urn:ietf:params:oauth:client-assertion-type:jwt-bearer").body
+      else
+        connection.post(@token_endpoint,
+                        grant_type:    "authorization_code",
+                        code:          code,
+                        client_id:     @client_id,
+                        client_secret: @client_secret,
+                        redirect_uri:  redirect_uri).body
+      end
     end
 
     def userinfo(access_token)
