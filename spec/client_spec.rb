@@ -125,6 +125,22 @@ describe MitID::Client do
 
       expect(decoded_request["nbf"]).to be_within(1).of(Time.now.to_i)
     end
+
+    it "includes idp_values in the signed request when given" do
+      authorize_url = subject.authorize_url(redirect_uri: redirect_uri, scope: scope, idp_values: "mitid")
+      jwt = CGI.parse(URI.parse(authorize_url).query)["request"].first
+      decoded_request = JWT.decode(jwt, private_key.public_key, true, { algorithm: "RS256" }).first
+
+      expect(decoded_request["idp_values"]).to eq "mitid"
+    end
+
+    it "omits idp_values from the signed request when not given" do
+      authorize_url = subject.authorize_url(redirect_uri: redirect_uri, scope: scope)
+      jwt = CGI.parse(URI.parse(authorize_url).query)["request"].first
+      decoded_request = JWT.decode(jwt, private_key.public_key, true, { algorithm: "RS256" }).first
+
+      expect(decoded_request).not_to have_key("idp_values")
+    end
   end
 
   describe "authorize" do
@@ -204,6 +220,12 @@ describe MitID::Client do
       expect(tokens["id_token"]).to eq id_token
       expect(tokens["access_token"]).to eq access_token
     end
+
+    it "raises BrokerError on unexpected HTTP errors" do
+      stub_request(:post, token_endpoint).to_return(status: 400, headers: { content_type: "application/json" }, body: "{}")
+
+      expect { subject.authorize(code: code, redirect_uri: redirect_uri) }.to raise_error(MitID::BrokerError)
+    end
   end
 
   describe "userinfo" do
@@ -237,6 +259,12 @@ describe MitID::Client do
       expect(userinfo["da.cpr"]).to eq mitid_cpr
       expect(userinfo["mitid.identity_name"]).to eq mitid_name
     end
+
+    it "raises BrokerError on unexpected HTTP errors" do
+      stub_request(:get, userinfo_endpoint).to_return(status: 401, headers: { content_type: "application/json" }, body: "{}")
+
+      expect { subject.userinfo(JWT.encode({}, nil)) }.to raise_error(MitID::BrokerError)
+    end
   end
 
   context "with client_secret" do
@@ -268,6 +296,18 @@ describe MitID::Client do
         query = URI.parse(subject.authorize_url(redirect_uri: redirect_uri, scope: scope)).query
 
         expect(CGI.parse(query)).not_to have_key("request")
+      end
+
+      it "includes idp_values as a query param when given" do
+        query = URI.parse(subject.authorize_url(redirect_uri: redirect_uri, scope: scope, idp_values: "mitid")).query
+
+        expect(CGI.parse(query)["idp_values"]).to eq ["mitid"]
+      end
+
+      it "omits idp_values when not given" do
+        query = URI.parse(subject.authorize_url(redirect_uri: redirect_uri, scope: scope)).query
+
+        expect(CGI.parse(query)).not_to have_key("idp_values")
       end
     end
 
@@ -303,6 +343,12 @@ describe MitID::Client do
 
         expect(tokens["id_token"]).to eq id_token
         expect(tokens["access_token"]).to eq access_token
+      end
+
+      it "raises BrokerError on unexpected HTTP errors" do
+        stub_request(:post, token_endpoint).to_return(status: 400, headers: { content_type: "application/json" }, body: "{}")
+
+        expect { subject.authorize(code: code, redirect_uri: redirect_uri) }.to raise_error(MitID::BrokerError)
       end
     end
   end
