@@ -169,11 +169,11 @@ describe MitID::CIBAClient do
       expect(result["access_token"]).to eq "acc_tok"
     end
 
-    it "raises AuthorizationPending when the user hasn't acted yet" do
+    it "returns nil when the user hasn't acted yet" do
       stub_request(:post, token_endpoint).
         to_return(status: 400, headers: { content_type: "application/json" }, body: JSON.generate(error: "authorization_pending"))
 
-      expect { subject.fetch_tokens(auth_req_id) }.to raise_error(MitID::AuthorizationPending)
+      expect(subject.fetch_tokens(auth_req_id)).to be_nil
     end
 
     it "raises AccessDenied when the user rejects the request" do
