@@ -220,6 +220,12 @@ describe MitID::Client do
       expect(tokens["id_token"]).to eq id_token
       expect(tokens["access_token"]).to eq access_token
     end
+
+    it "raises BrokerError on unexpected HTTP errors" do
+      stub_request(:post, token_endpoint).to_return(status: 400, headers: { content_type: "application/json" }, body: "{}")
+
+      expect { subject.authorize(code: code, redirect_uri: redirect_uri) }.to raise_error(MitID::BrokerError)
+    end
   end
 
   describe "userinfo" do
@@ -252,6 +258,12 @@ describe MitID::Client do
       expect(userinfo["mitid.date_of_birth"]).to eq mitid_date_of_birth
       expect(userinfo["da.cpr"]).to eq mitid_cpr
       expect(userinfo["mitid.identity_name"]).to eq mitid_name
+    end
+
+    it "raises BrokerError on unexpected HTTP errors" do
+      stub_request(:get, userinfo_endpoint).to_return(status: 401, headers: { content_type: "application/json" }, body: "{}")
+
+      expect { subject.userinfo(JWT.encode({}, nil)) }.to raise_error(MitID::BrokerError)
     end
   end
 
@@ -331,6 +343,12 @@ describe MitID::Client do
 
         expect(tokens["id_token"]).to eq id_token
         expect(tokens["access_token"]).to eq access_token
+      end
+
+      it "raises BrokerError on unexpected HTTP errors" do
+        stub_request(:post, token_endpoint).to_return(status: 400, headers: { content_type: "application/json" }, body: "{}")
+
+        expect { subject.authorize(code: code, redirect_uri: redirect_uri) }.to raise_error(MitID::BrokerError)
       end
     end
   end

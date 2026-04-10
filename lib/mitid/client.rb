@@ -5,6 +5,11 @@ require "uri"
 
 module MitID
   class Client
+    # @param openid_configuration_url [String] URL to the OpenID Connect discovery document
+    # @param client_id [String] Client ID issued by Signaturgruppen
+    # @param private_key [OpenSSL::PKey::RSA] RSA private key for JWT client assertion auth. Either private_key or client_secret is required
+    # @param client_secret [String] Client secret for client_secret_post auth. Either private_key or client_secret is required
+    # @raise [ArgumentError] If neither private_key nor client_secret is provided
     def initialize(openid_configuration_url:, client_id:, private_key: nil, client_secret: nil)
       raise ArgumentError, "Either private_key or client_secret must be provided" unless private_key || client_secret
 
@@ -15,6 +20,12 @@ module MitID
       fetch_openid_configuration openid_configuration_url
     end
 
+    # Generates the authorization URL to redirect the end-user to.
+    #
+    # @param redirect_uri [String] URI the broker will redirect to with the authorization code
+    # @param scope [String] Space-separated OAuth scopes, e.g. "openid mitid ssn"
+    # @param idp_values [String] Identity provider hint, e.g. "mitid" to skip the IDP selection screen
+    # @return [String] Authorization URL
     def authorize_url(redirect_uri:, scope:, idp_values: nil)
       if @private_key
         payload = { client_id: @client_id,
@@ -38,6 +49,12 @@ module MitID
       end
     end
 
+    # Exchanges an authorization code for tokens.
+    #
+    # @param code [String] Authorization code received in the redirect callback
+    # @param redirect_uri [String] Must match the redirect_uri used in authorize_url
+    # @return [Hash] Tokens hash containing id_token and access_token
+    # @raise [MitID::BrokerError] If the broker returns an unexpected error
     def authorize(code:, redirect_uri:)
       if @private_key
         client_assertion = JWT.encode({ jti: SecureRandom.uuid,
@@ -50,25 +67,37 @@ module MitID
                                       @private_key,
                                       "RS256")
 
-        connection.post(@token_endpoint,
-                        grant_type:            "authorization_code",
-                        code:                  code,
-                        client_id:             @client_id,
-                        redirect_uri:          redirect_uri,
-                        client_assertion:      client_assertion,
-                        client_assertion_type: "urn:ietf:params:oauth:client-assertion-type:jwt-bearer").body
+        response = connection.post(@token_endpoint,
+                                   grant_type:            "authorization_code",
+                                   code:                  code,
+                                   client_id:             @client_id,
+                                   redirect_uri:          redirect_uri,
+                                   client_assertion:      client_assertion,
+                                   client_assertion_type: "urn:ietf:params:oauth:client-assertion-type:jwt-bearer")
       else
-        connection.post(@token_endpoint,
-                        grant_type:    "authorization_code",
-                        code:          code,
-                        client_id:     @client_id,
-                        client_secret: @client_secret,
-                        redirect_uri:  redirect_uri).body
+        response = connection.post(@token_endpoint,
+                                   grant_type:    "authorization_code",
+                                   code:          code,
+                                   client_id:     @client_id,
+                                   client_secret: @client_secret,
+                                   redirect_uri:  redirect_uri)
       end
+
+      raise BrokerError.new(response.status, response.body) unless response.success?
+
+      response.body
     end
 
+    # Fetches user claims for the authenticated end-user.
+    #
+    # @param access_token [String] Access token returned by authorize
+    # @return [Hash] User claims, e.g. mitid_uuid, mitid.identity_name, da.cpr
+    # @raise [MitID::BrokerError] If the broker returns an unexpected error
     def userinfo(access_token)
-      connection.get(@userinfo_endpoint) { |req| req.headers["Authorization"] = "Bearer #{access_token}" }.body
+      response = connection.get(@userinfo_endpoint) { |req| req.headers["Authorization"] = "Bearer #{access_token}" }
+      raise BrokerError.new(response.status, response.body) unless response.success?
+
+      response.body
     end
 
     private

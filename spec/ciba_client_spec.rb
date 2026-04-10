@@ -136,6 +136,12 @@ describe MitID::CIBAClient do
       expect(response["expires_in"]).to eq 300
       expect(response["interval"]).to eq 2
     end
+
+    it "raises BrokerError on unexpected HTTP errors" do
+      stub_request(:post, ciba_endpoint).to_return(status: 500, headers: { content_type: "application/json" }, body: "{}")
+
+      expect { subject.initiate(reference_text: reference_text, ip: ip, cpr: cpr) }.to raise_error(MitID::BrokerError)
+    end
   end
 
   describe "fetch_tokens" do
@@ -163,25 +169,39 @@ describe MitID::CIBAClient do
       expect(result["access_token"]).to eq "acc_tok"
     end
 
-    it "returns authorization_pending without retrying" do
+    it "raises AuthorizationPending when the user hasn't acted yet" do
       stub_request(:post, token_endpoint).
-        to_return(headers: { content_type: "application/json" },
-                  body:    JSON.generate(error: "authorization_pending"))
+        to_return(status: 400, headers: { content_type: "application/json" }, body: JSON.generate(error: "authorization_pending"))
 
-      result = subject.fetch_tokens(auth_req_id)
-
-      expect(result["error"]).to eq "authorization_pending"
-      expect(WebMock).to have_requested(:post, token_endpoint).once
+      expect { subject.fetch_tokens(auth_req_id) }.to raise_error(MitID::AuthorizationPending)
     end
 
-    it "returns the error response on failure" do
+    it "raises AccessDenied when the user rejects the request" do
       stub_request(:post, token_endpoint).
-        to_return(headers: { content_type: "application/json" },
-                  body:    JSON.generate(error: "access_denied"))
+        to_return(status: 400, headers: { content_type: "application/json" }, body: JSON.generate(error: "access_denied"))
 
-      result = subject.fetch_tokens(auth_req_id)
+      expect { subject.fetch_tokens(auth_req_id) }.to raise_error(MitID::AccessDenied)
+    end
 
-      expect(result["error"]).to eq "access_denied"
+    it "raises SlowDown when polling too frequently" do
+      stub_request(:post, token_endpoint).
+        to_return(status: 400, headers: { content_type: "application/json" }, body: JSON.generate(error: "slow_down"))
+
+      expect { subject.fetch_tokens(auth_req_id) }.to raise_error(MitID::SlowDown)
+    end
+
+    it "raises InvalidGrant when the auth_req_id is invalid or expired" do
+      stub_request(:post, token_endpoint).
+        to_return(status: 400, headers: { content_type: "application/json" }, body: JSON.generate(error: "invalid_grant"))
+
+      expect { subject.fetch_tokens(auth_req_id) }.to raise_error(MitID::InvalidGrant)
+    end
+
+    it "raises BrokerError on unexpected errors" do
+      stub_request(:post, token_endpoint).
+        to_return(status: 500, headers: { content_type: "application/json" }, body: "{}")
+
+      expect { subject.fetch_tokens(auth_req_id) }.to raise_error(MitID::BrokerError)
     end
   end
 
@@ -192,6 +212,12 @@ describe MitID::CIBAClient do
       subject.cancel(auth_req_id)
 
       assert_requested request
+    end
+
+    it "raises BrokerError on unexpected HTTP errors" do
+      stub_request(:delete, "#{ciba_cancel_base}/#{auth_req_id}").to_return(status: 500, body: "{}")
+
+      expect { subject.cancel(auth_req_id) }.to raise_error(MitID::BrokerError)
     end
   end
 
