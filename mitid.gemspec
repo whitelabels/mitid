@@ -1,6 +1,6 @@
 Gem::Specification.new do |s|
   s.name        = "mitid"
-  s.version     = "0.2.0"
+  s.version     = "0.3.0"
   s.license     = "MIT"
   s.summary     = "MitID Client"
   s.description = "Client for Danish MitID"
@@ -19,4 +19,5 @@ Gem::Specification.new do |s|
 
   s.add_development_dependency "rspec", "~> 3.11.0"
   s.add_development_dependency "webmock", "~> 3.14.0"
+  s.add_development_dependency "irb"
 end
