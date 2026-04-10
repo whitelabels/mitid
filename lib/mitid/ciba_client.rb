@@ -70,7 +70,7 @@ module MitID
       return response.body if response.success?
 
       case response.body["error"]
-      when "authorization_pending" then raise AuthorizationPending
+      when "authorization_pending" then nil
       when "access_denied"         then raise AccessDenied
       when "slow_down"             then raise SlowDown
       when "invalid_grant"         then raise InvalidGrant
