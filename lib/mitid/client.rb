@@ -115,6 +115,7 @@ module MitID
         @connection ||= Faraday.new do |f|
           f.request :url_encoded
           f.response :json
+          f.adapter Faraday.default_adapter
         end
       end
   end

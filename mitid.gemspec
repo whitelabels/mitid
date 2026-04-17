@@ -1,6 +1,6 @@
 Gem::Specification.new do |s|
   s.name        = "mitid"
-  s.version     = "0.3.1"
+  s.version     = "0.3.2"
   s.license     = "MIT"
   s.summary     = "MitID Client"
   s.description = "Client for Danish MitID"
